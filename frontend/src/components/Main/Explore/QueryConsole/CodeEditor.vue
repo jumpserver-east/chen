@@ -12,6 +12,13 @@
       :content="statement"
       :visible.sync="saveSnippetDialogVisible"
     />
+
+    <SqlHistoryDialog
+      v-if="sqlHistoryDialogVisible"
+      :visible.sync="sqlHistoryDialogVisible"
+      :db-type="store.getters.profile?.dbType"
+      @select="onSelectSnippets"
+    />
     <Toolbar
       :items="toolbarItems"
       :right-items="rightToolbarItems"
@@ -64,7 +71,9 @@ import 'codemirror/addon/edit/matchbrackets.js'
 import { getHints } from '@/api/resource'
 import SelectSnippetDialog from '@/components/Main/Explore/QueryConsole/SelectSnippetDialog.vue'
 import SaveSnippetDialog from '@/components/Main/Explore/QueryConsole/SaveSnippetDialog.vue'
+import SqlHistoryDialog from '@/components/Main/Explore/QueryConsole/SqlHistoryDialog.vue'
 import { bus } from '@/bus'
+import { rememberSql } from '@/utils/sqlHistory'
 
 const formatterMap = {
   'clickhouse': 'sql',
@@ -92,6 +101,7 @@ export default {
   components: {
     SaveSnippetDialog,
     SelectSnippetDialog,
+    SqlHistoryDialog,
     Toolbar
   },
   props: {
@@ -114,6 +124,7 @@ export default {
       currentContext: '',
       selectSnippetDialogVisible: false,
       saveSnippetDialogVisible: false,
+      sqlHistoryDialogVisible: false,
       options: {
         autoRefresh: true,
         indentWithTabs: true,
@@ -192,6 +203,15 @@ export default {
           },
           disabled: () => this.state.inQuery
         },
+        history: {
+          type: 'button',
+          icon: 'el-icon-time',
+          tip: 'SQL历史',
+          onClick: () => {
+            this.sqlHistoryDialogVisible = true
+          },
+          disabled: () => this.state.inQuery
+        },
         save: {
           type: 'button',
           icon: 'iconfont icon-chen-save',
@@ -251,10 +271,15 @@ export default {
       }
       this.statement += snippet
       this.selectSnippetDialogVisible = false
+      this.sqlHistoryDialogVisible = false
     },
     onRun() {
       const sql = this.selectionValue || this.statement
       const CHUNK_SIZE = 4096
+      rememberSql(sql, {
+        dbType: store.getters.profile?.dbType,
+        assetName: store.getters.profile?.assetName
+      })
 
       if (sql.length <= CHUNK_SIZE) {
         this.$emit('action', { action: 'run_sql', data: sql })

@@ -173,11 +173,28 @@ export default {
       },
       gridOptions: {
         suppressMovableColumnsHints: true,
-        suppressSortingHints: true
+        suppressSortingHints: true,
+        enableCellTextSelection: true,
+        ensureDomOrder: true
       },
       init: false,
       currentRow: null,
+      currentCellValue: null,
       menus: [
+        {
+          name: 'copy-cell',
+          title: '复制单元格',
+          icon: 'el-icon-document-copy',
+          hidden: () => { return !store.getters.profile.canCopy },
+          callback: () => this.copyText(this.currentCellValue)
+        },
+        {
+          name: 'copy-row',
+          title: '复制整行',
+          icon: 'el-icon-document-copy',
+          hidden: () => { return !store.getters.profile.canCopy },
+          callback: () => this.copyText(this.rowText())
+        },
         {
           name: 'copy',
           title: this.$t('Copy'),
@@ -268,7 +285,50 @@ export default {
     },
     showContextMenu(params) {
       this.currentRow = params.data
+      this.currentCellValue = params.value
       this.$refs.rightMenu.show(params.event)
+    },
+    cellText(value) {
+      if (value === null || value === undefined) {
+        return ''
+      }
+      if (typeof value === 'object') {
+        return JSON.stringify(value)
+      }
+      return String(value)
+    },
+    rowText() {
+      return this.colDefs.map((col) => {
+        return this.cellText(this.currentRow ? this.currentRow[col.field] : '')
+      }).join('\t')
+    },
+    copyText(text) {
+      const value = text === null || text === undefined ? '' : String(text)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(() => {
+          this.$message.success(this.$t('CopySucceeded'))
+        }).catch(() => {
+          this.copyTextByExec(value)
+        })
+        return
+      }
+      this.copyTextByExec(value)
+    },
+    copyTextByExec(text) {
+      const area = document.createElement('textarea')
+      area.value = text
+      area.style.position = 'fixed'
+      area.style.opacity = '0'
+      document.body.appendChild(area)
+      area.focus()
+      area.select()
+      const copied = document.execCommand('copy')
+      document.body.removeChild(area)
+      if (copied) {
+        this.$message.success(this.$t('CopySucceeded'))
+      } else {
+        this.$message.error(this.$t('CopyFailed'))
+      }
     },
     preventDefaultContextMenu(event) {
       event.preventDefault()
