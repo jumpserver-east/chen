@@ -18,19 +18,19 @@ public class DMActionHandler extends BaseActionHandler {
     public List<Action> getSchemaActions(TreeNode node) {
         return List.of(
                 Action.builder()
-                        .label(MessageUtils.get("action.refresh"))
+                        .label(MessageUtils.get("Refresh"))
                         .key("refresh_node")
                         .divided(true)
                         .icon("el-icon-refresh")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("action.new_query"))
+                        .label(MessageUtils.get("NewQuery"))
                         .key("new_query")
                         .icon("el-icon-search")
                         .build()
                 ,
                 Action.builder()
-                        .label(MessageUtils.get("action.show_properties"))
+                        .label(MessageUtils.get("ShowProperties"))
                         .key("show_properties")
                         .icon("fa fa-align-justify")
                         .build()
@@ -41,29 +41,22 @@ public class DMActionHandler extends BaseActionHandler {
     public List<Action> getTableActions(TreeNode node) {
         return List.of(
                 Action.builder()
-                        .label(MessageUtils.get("action.new_query"))
+                        .label(MessageUtils.get("NewQuery"))
                         .key("new_query")
                         .icon("el-icon-search")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("action.view_data"))
+                        .label(MessageUtils.get("ViewData"))
                         .key("view_data")
                         .icon("el-icon-view")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("action.show_properties"))
+                        .label(MessageUtils.get("ShowProperties"))
                         .key("show_properties")
                         .icon("fa fa-align-justify")
                         .build()
         );
     }
-
-    private static final String SQL_SELECT_TABLE_DETAIL = "select TABNAME, TBSPACE, TABSCHEMA, TYPE, STATUS, COLCOUNT, ACTIVE_BLOCKS, AVGROWSIZE, OWNER, CREATE_TIME from syscat.TABLES WHERE TBSPACE is not null AND TABNAME = '?'";
-
-    public EventEmitter onTableProperties(TreeNode node) throws SQLException {
-        return this.onShowObjectProperties("table", SQL_SELECT_TABLE_DETAIL, node);
-    }
-
 
     @Override
     public EventEmitter handleForm(FormData formData) throws SQLException {

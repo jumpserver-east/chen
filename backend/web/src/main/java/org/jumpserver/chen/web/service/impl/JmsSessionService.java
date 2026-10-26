@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Instant;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -123,19 +124,22 @@ public class JmsSessionService implements SessionService {
 
         dbConnectInfo.setHost(address);
         dbConnectInfo.setPort(tokenResp.getData().getAsset().getProtocols(0).getPort());
-        dbConnectInfo.setDbType(tokenResp.getData().getAsset().getProtocols(0).getName().toLowerCase());
+        var platformType = tokenResp.getData().getPlatform().getType().toLowerCase();
+        dbConnectInfo.setDbType("oceanbase".equals(platformType) ? "oceanbase" :
+                tokenResp.getData().getAsset().getProtocols(0).getName().toLowerCase());
         dbConnectInfo.setUser(tokenResp.getData().getAccount().getUsername());
         dbConnectInfo.setPassword(tokenResp.getData().getAccount().getSecret());
-        dbConnectInfo.setDb(tokenResp.getData().getAsset().getSpecific().getDbName());
+        dbConnectInfo.setDb(StringUtils.defaultString(tokenResp.getData().getAsset().getSpecific().getDbName()));
 
         var platformSettings = tokenResp.getData().getPlatform().getProtocols(0).getSettingsMap();
-//
-        if (platformSettings.containsKey("sysdba") && platformSettings.get("sysdba").equals("true")) {
-            dbConnectInfo.getOptions().put("internal_logon", "sysdba");
-        }
+        applyPlatformSettings(dbConnectInfo, platformSettings);
 
-        if (platformSettings.containsKey("version")) {
-            dbConnectInfo.getOptions().put("version", platformSettings.get("version"));
+        var connectOptions = tokenResp.getData().getConnectOptions().getSettingsMap();
+        var useSysDBA = "oracle".equals(dbConnectInfo.getDbType()) && Boolean.parseBoolean(
+                connectOptions.getOrDefault("use_sysdba", "false")
+        );
+        if (useSysDBA) {
+            dbConnectInfo.getOptions().put("internal_logon", "sysdba");
         }
 
         var asset = tokenResp.getData().getAsset();
@@ -149,6 +153,24 @@ public class JmsSessionService implements SessionService {
             dbConnectInfo.getOptions().put("pgSSLMode", asset.getSpecific().getPgSslMode());
         }
         return DatasourceFactory.fromConnectInfo(dbConnectInfo);
+    }
+
+    static void applyPlatformSettings(DBConnectInfo dbConnectInfo, Map<String, String> platformSettings) {
+        if ("oceanbase".equals(dbConnectInfo.getDbType())) {
+            var tenantMode = platformSettings.get("tenant_mode");
+            if (!"mysql".equals(tenantMode) && !"oracle".equals(tenantMode)) {
+                throw new IllegalArgumentException("OceanBase tenant mode must be mysql or oracle");
+            }
+            dbConnectInfo.setTenantMode(tenantMode);
+        }
+        if (platformSettings.containsKey("version")) {
+            dbConnectInfo.getOptions().put("version", platformSettings.get("version"));
+        }
+
+        if ("sqlserver".equals(dbConnectInfo.getDbType())) {
+            var encrypt = platformSettings.getOrDefault("encrypt", "true");
+            dbConnectInfo.getOptions().put("encrypt", Boolean.parseBoolean(encrypt));
+        }
     }
 
     private Common.Session createJMSSession(ServiceOuterClass.TokenResponse tokenResp, String remoteAddr) {
